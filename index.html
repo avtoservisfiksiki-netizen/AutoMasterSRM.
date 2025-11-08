@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AutoMaster CRM</title>
+  <style>
+    :root{
+      --bg:#0b0f12;
+      --panel:#111318;
+      --muted:#9aa3ad;
+      --accent:#2f9cff;
+      --card:#0f1417;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#071014);color:#e8eef2;min-height:100vh}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:260px;background:linear-gradient(180deg,var(--panel),#0c1013);padding:20px;display:flex;flex-direction:column;gap:14px}
+    .brand{font-weight:700;font-size:20px;text-align:center;margin-bottom:6px}
+    .menu button{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+    .menu button.active{background:linear-gradient(90deg,rgba(47,156,255,0.12),rgba(47,156,255,0.06));color:var(--accent)}
+    .menu button:hover{background:rgba(255,255,255,0.02);color:#fff}
+    .main{flex:1;padding:22px;overflow:auto}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+    .stat{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,0.5)}
+    .stat .label{color:var(--muted);font-size:13px}
+    .stat .value{font-size:22px;font-weight:700;margin-top:6px;color:var(--accent)}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:14px;border-radius:12px}
+    .row{display:flex;gap:12px;align-items:center}
+    .btn{padding:8px 12px;border-radius:10px;border:0;background:var(--accent);color:#061017;cursor:pointer}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .table{width:100%;border-collapse:collapse;margin-top:12px}
+    .table th, .table td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px}
+    .small{font-size:13px;color:var(--muted)}
+    input, textarea{background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px;border-radius:8px;outline:none}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    .actions{display:flex;gap:8px;align-items:center}
+    .floating{position:fixed;right:22px;bottom:22px;z-index:40}
+    .icon{width:16px;height:16px;display:inline-block;vertical-align:middle}
+    .search{max-width:360px}
+    .muted{color:var(--muted)}
+    /* responsiveness */
+    @media (max-width:800px){
+      .sidebar{display:none}
+      .main{padding:12px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" role="navigation" aria-label="Меню">
+      <div>
+        <div class="brand">AutoMaster CRM</div>
+        <div class="muted" style="text-align:center;font-size:12px;margin-bottom:12px">v1.0 • демо</div>
+        <nav class="menu">
+          <button class="active" data-view="dashboard">Головна</button>
+          <button data-view="clients">Клієнти</button>
+          <button data-view="cars">Автомобілі</button>
+          <button data-view="orders">Наряди</button>
+          <button data-view="masters">Майстри</button>
+          <button data-view="stock">Склад</button>
+          <button data-view="messages">Повідомлення</button>
+        </nav>
+      </div>
+      <div style="font-size:12px;color:var(--muted);text-align:center">Робітників: 4 • ~20 клієнтів/міс</div>
+    </aside>
+
+    <main class="main">
+      <!-- Header -->
+      <div class="header">
+        <h1 id="page-title">Головна</h1>
+        <div class="row">
+          <input id="search" class="search" placeholder="Пошук клієнта або авто..." />
+          <button id="add-client-btn" class="btn">Додати клієнта</button>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div id="content">
+        <!-- Dashboard -->
+        <div id="view-dashboard" class="view">
+          <div class="stats">
+            <div class="stat card">
+              <div class="label">Авто в роботі</div>
+              <div class="value" id="stat-inwork">0</div>
+            </div>
+            <div class="stat card">
+              <div class="label">Клієнтів цього місяця</div>
+              <div class="value" id="stat-clients">0</div>
+            </div>
+            <div class="stat card">
+              <div class="label">Завершено робіт</div>
+              <div class="value" id="stat-done">0</div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div><strong>Останні клієнти</strong><div class="small muted">Останні додані</div></div>
+              <div class="small muted" id="last-updated">—</div>
+            </div>
+            <table class="table" id="recent-table">
+              <thead><tr><th>Ім'я</th><th>Телефон</th><th>Авто</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Clients -->
+        <div id="view-clients" class="view" style="display:none">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div><strong>Клієнти</strong><div class="small muted">Список клієнтів та контактів</div></div>
+              <div class="actions">
+                <button id="export-btn" class="btn secondary">Експорт JSON</button>
+                <button id="clear-btn" class="btn secondary">Очистити все</button>
+              </div>
+            </div>
+
+            <table class="table" id="clients-table">
+              <thead>
+                <tr><th>Ім'я</th><th>Телефон</th><th>Авто</th><th>Примітка</th><th>Дії</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Placeholder other views -->
+        <div id="view-cars" class="view" style="display:none">
+          <div class="card"><strong>Автомобілі</strong><div class="small muted">(Поки що базова сторінка)</div></div>
+        </div>
+        <div id="view-orders" class="view" style="display:none">
+          <div class="card"><strong>Наряди</strong><div class="small muted">(Поки що базова сторінка)</div></div>
+        </div>
+        <div id="view-masters" class="view" style="display:none">
+          <div class="card"><strong>Майстри</strong><div class="small muted">Майстер 1, Майстер 2, Майстер 3, Майстер 4</div></div>
+        </div>
+        <div id="view-stock" class="view" style="display:none">
+          <div class="card"><strong>Склад</strong><div class="small muted">Облік запчастин — в роботі</div></div>
+        </div>
+
+        <div id="view-messages" class="view" style="display:none">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div><strong>Повідомлення</strong><div class="small muted">Приклад інтеграції: Telegram / WhatsApp / Viber</div></div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div class="card" style="min-width:260px;flex:1">
+                <div class="small muted">Обрати клієнта з таблиці → натиснути потрібний канал</div>
+                <div style="margin-top:8px">
+                  <button class="btn" id="sample-tg">Написати клієнту в Telegram</button>
+                  <button class="btn" id="sample-wa">Написати в WhatsApp</button>
+                  <button class="btn" id="sample-vb">Написати в Viber</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Add client -->
+  <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:20px;z-index:50">
+    <div style="max-width:760px;width:100%;background:var(--panel);padding:16px;border-radius:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>Додати клієнта</strong>
+        <button id="modal-close" class="btn secondary">Закрити</button>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px">
+        <input id="f-name" placeholder="Ім'я (ПІБ)" />
+        <input id="f-phone" placeholder="Телефон (напр. +380971234567)" />
+        <input id="f-car" placeholder="Авто (марка, модель)" />
+        <input id="f-note" placeholder="Примітка" />
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="save-client" class="btn">Зберегти клієнта</button>
+        <button id="save-add-another" class="btn secondary">Зберегти і додати ще</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- Storage API ---------- */
+    const LS_KEY = 'am_clients_v1';
+
+    function loadClients(){
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if(!raw) return [];
+        return JSON.parse(raw);
+      } catch(e) { console.error(e); return [];}
+    }
+    function saveClients(list){
+      localStorage.setItem(LS_KEY, JSON.stringify(list));
+    }
+
+    /* ---------- App state ---------- */
+    let clients = loadClients(); // array of {id,name,phone,car,note,created}
+    const menuBtns = document.querySelectorAll('.menu button');
+    const views = document.querySelectorAll('.view');
+    const pageTitle = document.getElementById('page-title');
+    const searchInput = document.getElementById('search');
+
+    /* ---------- Render functions ---------- */
+    function renderStats(){
+      document.getElementById('stat-clients').textContent = clients.length;
+      // simple heuristics:
+      document.getElementById('stat-inwork').textContent = Math.min(12, Math.floor(clients.length/1) ); 
+      document.getElementById('stat-done').textContent = Math.floor((clients.length*2));
+      document.getElementById('last-updated').textContent = clients.length ? new Date(clients[clients.length-1].created).toLocaleString() : '—';
+      renderRecent();
+    }
+    function renderRecent(){
+      const tbody = document.querySelector('#recent-table tbody');
+      tbody.innerHTML = '';
+      const list = clients.slice(-6).reverse();
+      for(const c of list){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(c.name)}</td><td class="small">${escapeHtml(c.phone)}</td><td class="small">${escapeHtml(c.car)}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderClients(filter=''){
+      const tbody = document.querySelector('#clients-table tbody');
+      tbody.innerHTML = '';
+      const q = filter.trim().toLowerCase();
+      const list = clients.filter(c => {
+        if(!q) return true;
+        return (c.name||'').toLowerCase().includes(q) || (c.phone||'').toLowerCase().includes(q) || (c.car||'').toLowerCase().includes(q);
+      });
+      for(const c of list){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(c.phone)}</td>
+          <td>${escapeHtml(c.car)}</td>
+          <td class="small">${escapeHtml(c.note||'')}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn small-btn" data-action="tg" data-id="${c.id}" title="Telegram">TG</button>
+              <button class="btn small-btn" data-action="wa" data-id="${c.id}" title="WhatsApp">WA</button>
+              <button class="btn small-btn" data-action="vb" data-id="${c.id}" title="Viber">VB</button>
+              <button class="btn secondary" data-action="del" data-id="${c.id}">Видалити</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, function(m){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]}); }
+
+    /* ---------- UI: Menu switching ---------- */
+    menuBtns.forEach(b=>{
+      b.addEventListener('click',()=>{
+        menuBtns.forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        const view = b.dataset.view;
+        views.forEach(v=>v.style.display='none');
+        const el = document.getElementById('view-'+view);
+        if(el) el.style.display = 'block';
+        pageTitle.textContent = capitalizeFirst(b.textContent.trim());
+        // render clients if selected
+        if(view === 'clients') renderClients(searchInput.value);
+        if(view === 'dashboard') renderStats();
+      });
+    });
+
+    function capitalizeFirst(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    /* ---------- Modal & Add client ---------- */
+    const modal = document.getElementById('modal');
+    const addClientBtn = document.getElementById('add-client-btn');
+    const modalClose = document.getElementById('modal-close');
+    const saveClientBtn = document.getElementById('save-client');
+    const saveAddAnotherBtn = document.getElementById('save-add-another');
+
+    addClientBtn.onclick = ()=> openModal();
+    modalClose.onclick = ()=> closeModal();
+
+    function openModal(){
+      modal.style.display = 'flex';
+      document.getElementById('f-name').value = '';
+      document.getElementById('f-phone').value = '';
+      document.getElementById('f-car').value = '';
+      document.getElementById('f-note').value = '';
+    }
+    function closeModal(){ modal.style.display = 'none'; }
+
+    function createClientFromForm(){
+      const name = document.getElementById('f-name').value.trim();
+      const phone = document.getElementById('f-phone').value.trim();
+      const car = document.getElementById('f-car').value.trim();
+      const note = document.getElementById('f-note').value.trim();
+      if(!name || !phone) { alert('Будь ласка, введіть ім\'я та телефон.'); return null; }
+      return { id: 'c_'+Date.now(), name, phone, car, note, created: Date.now() };
+    }
+
+    saveClientBtn.onclick = ()=>{
+      const client = createClientFromForm();
+      if(!client) return;
+      clients.push(client); saveClients(clients);
+      renderClients(searchInput.value); renderStats();
+      closeModal();
+      // switch to clients view
+      document.querySelector('[data-view="clients"]').click();
+    }
+    saveAddAnotherBtn.onclick = ()=>{
+      const client = createClientFromForm();
+      if(!client) return;
+      clients.push(client); saveClients(clients);
+      renderClients(searchInput.value); renderStats();
+      document.getElementById('f-name').value = '';
+      document.getElementById('f-phone').value = '';
+      document.getElementById('f-car').value = '';
+      document.getElementById('f-note').value = '';
+    }
+
+    /* ---------- Table actions (delegate) ---------- */
+    document.querySelector('#clients-table tbody').addEventListener('click', (e)=>{
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      const client = clients.find(c=>c.id===id);
+      if(!client) return;
+      if(action === 'del'){
+        if(confirm('Видалити клієнта?')) {
+          clients = clients.filter(c=>c.id!==id); saveClients(clients); renderClients(searchInput.value); renderStats();
+        }
+      } else if(action === 'tg') {
+        openTelegram(client);
+      } else if(action === 'wa') {
+        openWhatsApp(client);
+      } else if(action === 'vb') {
+        openViber(client);
+      }
+    });
+
+    /* ---------- Messaging helpers ---------- */
+    function normalizePhoneForLink(raw){
+      if(!raw) return '';
+      let p = raw.replace(/\s+/g,'').replace(/[^0-9+]/g,'');
+      // wa.me wants no leading plus
+      const withPlus = p.startsWith('+') ? p : (p.startsWith('0') ? '+38'+p.replace(/^0/,'') : p);
+      return withPlus;
+    }
+    function phoneForWa(raw){
+      const p = normalizePhoneForLink(raw);
+      return p.replace('+',''); // wa.me/<number>
+    }
+
+    function openTelegram(client){
+      const text = encodeURIComponent(`Доброго дня, ${client.name}! Це AutoMaster. Ваш авто: ${client.car || '—'}.`);
+      // try tg:// first (app); fallback to web
+      const tgApp = `tg://msg?text=${text}`;
+      const tgWeb = `https://t.me/share/url?url=&text=${text}`;
+      window.open(tgApp, '_blank') || window.open(tgWeb, '_blank');
+    }
+    function openWhatsApp(client){
+      const phone = phoneForWa(client.phone);
+      const text = encodeURIComponent(`Доброго дня, ${client.name}! Це AutoMaster. Ваш авто: ${client.car || '—'}.`);
+      // URL format: https://wa.me/<number>?text=...
+      const url = `https://wa.me/${phone}?text=${text}`;
+      window.open(url, '_blank');
+    }
+    function openViber(client){
+      const phone = normalizePhoneForLink(client.phone);
+      const text = encodeURIComponent(`Доброго дня, ${client.name}! Це AutoMaster.`);
+      // viber://chat?number=<phone>  or web fallback
+      const app = `viber://chat?number=${phone}`;
+      const web = `https://vb.me/${phone.replace('+','')}`;
+      window.open(app, '_blank') || window.open(web, '_blank');
+    }
+
+    /* ---------- Search ---------- */
+    searchInput.addEventListener('input', ()=> {
+      const q = searchInput.value;
+      // if on clients view, update table; else quick filter on clients when switching
+      if(document.getElementById('view-clients').style.display !== 'none') renderClients(q);
+    });
+
+    /* ---------- Export & Clear ---------- */
+    document.getElementById('export-btn').addEventListener('click', ()=>{
+      const data = JSON.stringify(clients, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'am_clients.json'; a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('clear-btn').addEventListener('click', ()=>{
+      if(confirm('Видалити ВСІ дані локально?')) {
+        clients = []; saveClients(clients); renderClients(); renderStats();
+      }
+    });
+
+    /* ---------- Sample message buttons ---------- */
+    document.getElementById('sample-tg').addEventListener('click', ()=>{
+      const c = clients[clients.length-1];
+      if(!c){ alert('Спочатку додайте клієнта.'); return;}
+      openTelegram(c);
+    });
+    document.getElementById('sample-wa').addEventListener('click', ()=>{
+      const c = clients[clients.length-1];
+      if(!c){ alert('Спочатку додайте клієнта.'); return;}
+      openWhatsApp(c);
+    });
+    document.getElementById('sample-vb').addEventListener('click', ()=>{
+      const c = clients[clients.length-1];
+      if(!c){ alert('Спочатку додайте клієнта.'); return;}
+      openViber(c);
+    });
+
+    /* ---------- Init ---------- */
+    function init(){
+      renderClients();
+      renderStats();
+      // keep views consistent on mobile
+      if(window.innerWidth <= 800){
+        // show dashboard by default
+        document.querySelector('[data-view="dashboard"]').click();
+      }
+      // Event: when clicking outside modal => close
+      modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+    }
+    init();
+  </script>
+</body>
+  </html>
